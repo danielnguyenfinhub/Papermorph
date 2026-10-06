@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spin It: Rotational Symmetry — Shape &amp; Mirror</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 2, title: 'Spin It: Rotational Symmetry', minutes: 7, language: 'en' };
+
+/* ---------- chapter drawing helpers (prefixed sy- so they never collide with engine globals) ---------- */
+const SY_SHAPE = COL.nat, SY_TURN = COL.task;     // shape = coral; turn / angle / order = amber (ghost outline = chalk)
+const syText = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const syTitle = (p, str, sub = '') => { syText(p, str, 100, 120, .1, { size: 44, weight: 600 }); if (sub) syText(p, sub, 100, 174, .25, { size: 27, fill: COL.dim }); };
+const syFill = (col, o = .5) => ({ fill: col, 'fill-opacity': o, stroke: col, 'stroke-width': 4, 'stroke-linejoin': 'round' });
+const syGhostAttrs = { fill: 'none', stroke: COL.chalk, 'stroke-width': 3, 'stroke-dasharray': '10 9', 'stroke-linejoin': 'round' };
+// Regular n-gon, circumradius r, first corner at angle a0 (degrees, -90 = straight up), centred on (0,0).
+const syNgon = (n, r, a0 = -90) => 'M' + Array.from({ length: n }, (_, i) => { const a = (a0 + 360 * i / n) * Math.PI / 180; return `${(r * Math.cos(a)).toFixed(1)} ${(r * Math.sin(a)).toFixed(1)}`; }).join('L') + 'Z';
+// Draw a shape twice at (x, y): a fixed dashed ghost, and a coloured copy in a group that can turn (state r, degrees).
+// draw0(parent, attrs) draws the outline around (0,0). Returns { ghost, spin }.
+const syTurner = (p, x, y, draw0, col = SY_SHAPE, t0 = .2) => {
+  const ghost = G(p, { x, y, o: 0 }); draw0(ghost, syGhostAttrs);
+  const spin = G(p, { x, y, o: 0 }); draw0(spin, syFill(col));
+  show(spin, t0);
+  return { ghost, spin };
+};
+// A pinwheel: n blades around the centre.
+const syBlades = (n, len = 190) => (g, attrs) => { for (let i = 0; i < n; i++) mk('path', { d: `M0 0L0 ${-len}Q${len * .58} ${-len * .93} ${len * .63} ${-len * .42}Z`, transform: `rotate(${360 * i / n})`, ...attrs }, g); };
+// The letter F in units (stem on the left), centred on the middle of its box.
+const SY_F = [[-1.5, -2.5], [1.5, -2.5], [1.5, -1.5], [-.5, -1.5], [-.5, -.5], [.9, -.5], [.9, .5], [-.5, .5], [-.5, 2.5], [-1.5, 2.5]];
+const syF = u => (g, attrs) => mk('path', { d: 'M' + SY_F.map(([x, y]) => `${x * u} ${y * u}`).join('L') + 'Z', ...attrs }, g);
+
+// Click-the-picture item.
+const syPick = (p, cx, cy, draw0, label, labelY = 575) => {
+  const g = G(p, { x: cx, y: cy, o: 0 }); draw0(g); show(g, .3);
+  syText(p, label, cx, labelY, .3, { size: 34, fill: COL.dim, anchor: 'middle', weight: 600 });
+  return { el: g, box: [cx - 150, cy - 130, 300, 260], label: 'Shape ' + label };
+};
+
+const BEATS = [
+  ['intro', 'Spin It', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1, Chapter 2', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Spin It', { x: 800, y: 410, size: 92, weight: 600, anchor: 'middle' });
+    T(g, 'Rotational Symmetry', { x: 800, y: 510, size: 60, weight: 600, anchor: 'middle', fill: SY_TURN });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = syText(scene, 'some shapes look the same when you spin them', 800, 650, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['spin', 'A pinwheel turns', (m) => {
+    const p = panel(0);
+    const { ghost, spin } = syTurner(p, 800, 470, syBlades(3));
+    const dot = G(spin, { x: 0, y: -190 }); mk('circle', { r: 14, fill: COL.chalk }, dot);
+    show(ghost, m('ghost'));
+    tw(spin, { r: 120 }, m('turn'), 2.4, io);
+    const arc = path(p, 'M800 205A265 265 0 0 1 1029.5 602.5', { stroke: SY_TURN, 'stroke-width': 5 }, { d: 0 });
+    draw(arc, m('turn'), 2.4);
+    syText(p, '120°', 1070, 440, m('turn', 1.2), { size: 52, fill: SY_TURN, weight: 700 });
+    syText(p, 'a third of a full turn', 1070, 490, m('turn', 1.2), { size: 28, fill: COL.dim });
+    syText(p, 'fits the trace exactly', 800, 800, m('same'), { size: 36, fill: COL.good, anchor: 'middle', weight: 600 });
+    syText(p, 'rotational symmetry', 800, 855, m('name'), { size: 40, fill: SY_TURN, anchor: 'middle', weight: 600 });
+  }],
+
+  ['square', 'Order of a square', (m) => {
+    const p = panel(0);
+    syTitle(p, 'Turn it, and see when it fits');
+    const draw0 = (g, attrs) => mk('rect', { x: -120, y: -120, width: 240, height: 240, rx: 4, ...attrs }, g);
+    const { ghost, spin } = syTurner(p, 800, 440, draw0, COL.whole);
+    show(ghost, .3);
+    const dot = G(spin, { x: -120, y: -120 }); mk('circle', { r: 14, fill: COL.chalk }, dot);
+    const steps = [['one', 90], ['two', 180], ['three', 270], ['four', 360]];
+    steps.forEach(([k, deg], i) => {
+      tw(spin, { r: deg }, m(k), 1.1, io);
+      syText(p, `${deg}°`, 360 + i * 290, 735, m(k) + .6, { size: 50, fill: SY_TURN, anchor: 'middle', weight: 700 });
+      syText(p, 'fits', 360 + i * 290, 780, m(k) + .6, { size: 28, fill: COL.good, anchor: 'middle' });
+    });
+    syText(p, 'order 4', 1260, 440, m('name'), { size: 56, fill: SY_TURN, anchor: 'middle', weight: 700 });
+    syText(p, '4 fits in one turn', 1260, 490, m('name'), { size: 28, fill: COL.dim, anchor: 'middle' });
+  }],
+
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    syTitle(p, 'Which shape looks the same after a quarter turn?', 'A quarter turn is 90°.');
+    const shapes = [
+      g => mk('rect', { x: -120, y: -75, width: 240, height: 150, rx: 4, ...syFill(COL.int, .35) }, g),
+      g => mk('rect', { x: -90, y: -90, width: 180, height: 180, rx: 4, ...syFill(COL.whole, .35) }, g),
+      g => mk('path', { d: syNgon(3, 110), ...syFill(COL.irr, .35) }, g),
+    ];
+    S.q1 = shapes.map((fn, i) => syPick(p, 360 + i * 440, 400, fn, 'ABC'[i]));
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-quarter', prompt: 'Click the shape that looks the same after a quarter turn.',
+    build: pickEls(S.q1 || [], 1, 'A square has four equal sides and four right angles, so a quarter turn lands it on itself.',
+      i => i === 0 ? 'Turn this rectangle a quarter and its long sides become upright: it no longer fits its outline.' : 'A triangle fits after a third of a turn (120°), not a quarter.',
+      () => pulseFx(S.q1[1].el, 1.08)),
+  }], done) }],
+
+  ['angle', 'The smallest turn', (m) => {
+    const p = panel(0);
+    syTitle(p, 'Split the full turn: 360° ÷ order');
+    const rows = [['tri', 3, -90, COL.irr], ['sq', 4, -45, COL.whole], ['hex', 6, -90, COL.real]];
+    rows.forEach(([k, n, a0, col], i) => {
+      const y = 330 + i * 190;
+      const g = G(p, { x: 380, y, o: 0 }); mk('path', { d: syNgon(n, 72, a0), ...syFill(col, .4) }, g); show(g, m(k));
+      syText(p, `order ${n}`, 560, y - 8, m(k), { size: 34, fill: COL.dim });
+      syText(p, `360° ÷ ${n} = ${360 / n}°`, 800, y + 14, m(k, .5), { size: 62, fill: SY_TURN, weight: 700 });
+    });
+    syText(p, 'divide the full turn by the order', 800, 860, m('rule'), { size: 36, fill: COL.chalk, anchor: 'middle', weight: 600 });
+  }],
+
+  ['once', 'Only a full turn', (m) => {
+    const p = panel(0);
+    const { ghost, spin } = syTurner(p, 800, 450, syF(70));
+    show(ghost, .3);
+    const steps = [['q', 90], ['h', 180], ['t', 270], ['full', 360]];
+    steps.forEach(([k, deg], i) => {
+      tw(spin, { r: deg }, m(k), 1.1, io);
+      const full = deg === 360;
+      syText(p, `${deg}°`, 360 + i * 290, 785, m(k) + .6, { size: 46, fill: SY_TURN, anchor: 'middle', weight: 700 });
+      syText(p, full ? 'fits' : 'no match', 360 + i * 290, 830, m(k) + .6, { size: 28, fill: full ? COL.good : COL.bad, anchor: 'middle' });
+    });
+    syText(p, 'order 1', 1280, 400, m('name'), { size: 56, fill: SY_TURN, anchor: 'middle', weight: 700 });
+    syText(p, 'fits just once', 1280, 450, m('name'), { size: 28, fill: COL.dim, anchor: 'middle' });
+  }],
+
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    syTitle(p, 'A pinwheel with six equal blades', 'Each blade is the same size and shape.');
+    const g = G(p, { x: 800, y: 440, o: 0 }); syBlades(6, 170)(g, syFill(COL.real, .45)); show(g, .3);
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-six', prompt: 'What is the smallest turn that makes the pinwheel fit its outline?',
+    build: choice([['60°'], ['90°'], ['120°'], ['180°']], 0, '360° ÷ 6 = 60°. Six turns of 60° make one full turn.',
+      [null, '90° would fit only four times in a full turn. Six blades need six equal turns.', '120° fits three times, which would suit a pinwheel with three blades.', '180° fits twice, which would suit a pinwheel with two blades.']),
+  }], done) }],
+
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A turn can make a shape fit its own outline.', 'w1'], ['The order is how many times it fits in one full turn.', 'w2'], ['The smallest turn is 360° ÷ the order.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 330 + i * 140, o: 0 });
+      mk('circle', { cx: 155, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 155, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 215, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-angle', prompt: 'Find the smallest turn, in degrees, that makes each shape fit its outline.',
+    build: blanks([
+      { parts: ['Square: 360 ÷ 4 = ', { box: '90' }, '°'], why: 'A square fits four times in a full turn, so each turn is 360 ÷ 4 = 90°.', hint: 'Divide 360 by the number of times it fits.' },
+      { parts: ['Triangle with three equal sides: 360 ÷ 3 = ', { box: '120' }, '°'], why: 'It fits three times, so each turn is 360 ÷ 3 = 120°.', hint: 'Divide 360 by 3.' },
+      { parts: ['Hexagon with six equal sides: 360 ÷ 6 = ', { box: '60' }, '°'], why: 'It fits six times, so each turn is 360 ÷ 6 = 60°.', hint: 'Divide 360 by 6.' },
+      { parts: ['Octagon with eight equal sides: 360 ÷ 8 = ', { box: '45' }, '°'], why: 'It fits eight times, so each turn is 360 ÷ 8 = 45°.', hint: 'Divide 360 by 8.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-order', prompt: 'How many times does each shape fit its outline in one full turn?',
+    build: grid([
+      { parts: ['A square'], ans: ['4'], why: 'Quarter turns of 90°: four fits.' },
+      { parts: ['A rectangle that is not a square'], ans: ['2'], why: 'It fits after a half turn and after a full turn: two fits.' },
+      { parts: ['A triangle with three equal sides'], ans: ['3'], why: 'Turns of 120°: three fits.' },
+      { parts: ['The letter F'], ans: ['1'], why: 'Only the full turn brings it back: one fit.' },
+    ], [['1', '1', null, '1'], ['2', '2', null, '2'], ['3', '3', null, '3'], ['4', '4', null, '4']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: 'True or false?',
+    build: grid([
+      { parts: ['A circle looks the same after any turn about its centre.'], ans: ['t'], why: 'Every point of a circle is the same distance from the centre.' },
+      { parts: ['A rectangle that is not a square looks the same after a quarter turn.'], ans: ['f'], why: 'After a quarter turn its long sides stand upright, so it no longer fits.' },
+      { parts: ['Every shape fits its own outline after a full turn.'], ans: ['t'], why: 'A full turn is 360°, which puts everything back where it started.' },
+      { parts: ['The letter F fits its outline after a half turn.'], ans: ['f'], why: 'Turned upside down, the F does not land on itself.' },
+    ], TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

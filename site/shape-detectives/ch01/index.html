@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fold It: Line Symmetry — Shape &amp; Mirror</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="audio/en/timings.js"></script>
+<script>
+'use strict';
+const CHAPTER = { number: 1, title: 'Fold It: Line Symmetry', minutes: 7, language: 'en', next: '../ch02/' };
+
+/* ---------- chapter drawing helpers (prefixed sy- so they never collide with engine globals) ---------- */
+const AX = 800;                                   // x of the mirror line in the big pictures
+const SY_L = COL.nat, SY_R = COL.whole, SY_LINE = COL.task;   // left half, right half, mirror line: same meaning all chapter
+const syText = (p, str, x, y, t0, { size = 30, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) => { const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e; };
+const syTitle = (p, str, sub = '') => { syText(p, str, 100, 120, .1, { size: 44, weight: 600 }); if (sub) syText(p, sub, 100, 174, .25, { size: 27, fill: COL.dim }); };
+const syLine = (p, x1, y1, x2, y2, col = SY_LINE, w = 4) => mk('line', { x1, y1, x2, y2, stroke: col, 'stroke-width': w, 'stroke-dasharray': '14 11', 'stroke-linecap': 'round' }, p);
+const syPoly = (pts, cx, cy, u, k) => 'M' + pts.map(([x, y]) => `${(cx + k * u * x).toFixed(1)} ${(cy + u * y).toFixed(1)}`).join('L') + 'Z';
+const syFill = (col, o = .5) => ({ fill: col, 'fill-opacity': o, stroke: col, 'stroke-width': 4, 'stroke-linejoin': 'round' });
+
+// One half of a heart: k = 1 is the half on its own side of the line, k = -1 is that half folded across the line.
+const HEART = { f: 1.5, top: 330 };
+const heartHalf = (side, k) => {
+  const f = HEART.f, X = dx => (AX + side * k * dx * f).toFixed(1), Y = dy => (HEART.top + dy * f).toFixed(1);
+  return `M${X(0)} ${Y(0)}C${X(40)} ${Y(-70)} ${X(150)} ${Y(-60)} ${X(150)} ${Y(20)}C${X(150)} ${Y(100)} ${X(60)} ${Y(150)} ${X(0)} ${Y(200)}Z`;
+};
+
+// The letter F in units: its left half (stem side) and the two pieces on the right of the line.
+const F_U = 80, F_TOP = 230;
+const F_L = [[-1.5, 0], [0, 0], [0, 1], [-.5, 1], [-.5, 2], [0, 2], [0, 3], [-.5, 3], [-.5, 5], [-1.5, 5]];
+const F_R1 = [[0, 0], [1.5, 0], [1.5, 1], [0, 1]];
+const F_R2 = [[0, 2], [.9, 2], [.9, 3], [0, 3]];
+
+// Flag-like triangle for the twin picture (80 px = 1 unit from the line).
+const TRI = [[-240, -160], [-80, -100], [-120, 80]], TRI_Y = 480;
+const triD = (k) => 'M' + TRI.map(([x, y]) => `${(AX - k * x).toFixed(1)} ${TRI_Y + y}`).join('L') + 'Z';
+const triLeft = 'M' + TRI.map(([x, y]) => `${AX + x} ${TRI_Y + y}`).join('L') + 'Z';
+
+// A small picture group for the click-the-picture questions.
+const syPick = (p, cx, cy, draw0, label, labelY = 575) => {
+  const g = G(p, { o: 0 }); draw0(g); show(g, .3);
+  syText(p, label, cx, labelY, .3, { size: 34, fill: COL.dim, anchor: 'middle', weight: 600 });
+  return { el: g, box: [cx - 150, cy - 130, 300, 260], label: 'Shape ' + label };
+};
+
+const BEATS = [
+  ['intro', 'Fold It', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, 'Unit 1, Chapter 1', { x: 800, y: 300, size: 28, fill: COL.dim, anchor: 'middle' });
+    T(g, 'Fold It', { x: 800, y: 410, size: 92, weight: 600, anchor: 'middle' });
+    T(g, 'Line Symmetry', { x: 800, y: 510, size: 60, weight: 600, anchor: 'middle', fill: SY_LINE });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = syText(scene, 'some shapes can fold onto themselves perfectly', 800, 650, m('sub'), { size: 34, fill: COL.dim, anchor: 'middle' });
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['fold', 'Fold the heart', (m) => {
+    const p = panel(0);
+    const L = G(p, { o: 0 }), R = G(p, { o: 0 });
+    const pl = mk('path', { d: heartHalf(-1, 1), ...syFill(SY_L) }, L);
+    mk('path', { d: heartHalf(1, 1), ...syFill(SY_R) }, R);
+    show(L, .2); show(R, .2);
+    const ax = G(p, { o: 0 }); syLine(ax, AX, 250, AX, 700); show(ax, m('line'));
+    prog(q => pl.setAttribute('d', heartHalf(-1, 1 - 2 * q)), m('fold'), 2.4, io);
+    pulse(R, m('match'), 1.04);
+    syText(p, 'left half', 480, 780, .4, { size: 30, fill: SY_L, anchor: 'middle', weight: 600 });
+    syText(p, 'right half', 1120, 780, .4, { size: 30, fill: SY_R, anchor: 'middle', weight: 600 });
+    syText(p, 'the halves match exactly', 800, 780, m('match'), { size: 34, fill: COL.good, anchor: 'middle', weight: 600 });
+    syText(p, 'line of symmetry', AX + 28, 236, m('name'), { size: 34, fill: SY_LINE, weight: 600 });
+  }],
+
+  ['twin', 'Mirror twins', (m) => {
+    const p = panel(0);
+    const ax = G(p, { o: 0 }); syLine(ax, AX, 250, AX, 720); show(ax, .2);
+    const left = G(p, { o: 0 }); mk('path', { d: triLeft, ...syFill(SY_L) }, left); show(left, .3);
+    const [ax0, ay0] = [AX + TRI[0][0], TRI_Y + TRI[0][1]];
+    const A = G(p, { x: ax0, y: ay0, o: 0 }); mk('circle', { r: 11, fill: COL.chalk }, A);
+    show(A, m('a')); pulse(A, m('a'), 1.6);
+    const sA = G(p, { o: 0 }); syLine(sA, ax0, ay0, AX, ay0, COL.chalk, 3); show(sA, m('a', .5));
+    syText(p, '3 units', (ax0 + AX) / 2, ay0 - 22, m('a', .5), { size: 30, fill: COL.chalk, anchor: 'middle' });
+    const A2 = G(p, { x: 2 * AX - ax0, y: ay0, o: 0 }); mk('circle', { r: 11, fill: COL.chalk }, A2);
+    show(A2, m('b')); pulse(A2, m('b'), 1.6);
+    const sB = G(p, { o: 0 }); syLine(sB, AX, ay0, 2 * AX - ax0, ay0, COL.chalk, 3); show(sB, m('b', .3));
+    syText(p, '3 units', (3 * AX - ax0) / 2, ay0 - 22, m('b', .3), { size: 30, fill: COL.chalk, anchor: 'middle' });
+    const twin = G(p, { o: 0 }); const tp = mk('path', { d: triD(0), ...syFill(SY_R) }, twin);
+    show(twin, m('tri'), .3); prog(q => tp.setAttribute('d', triD(q)), m('tri'), 1.8, io);
+    syText(p, 'same distance, opposite sides', 800, 800, m('rule'), { size: 38, fill: SY_LINE, anchor: 'middle', weight: 600 });
+  }],
+
+  ['q1', 'Quick check', () => {
+    const p = panel(0);
+    syTitle(p, 'Which dashed line is a line of symmetry?');
+    const rect = g => mk('rect', { x: -130, y: -85, width: 260, height: 170, rx: 6, ...syFill(COL.whole, .35) }, g);
+    const lines = [
+      g => { rect(g); syLine(g, -130, -85, 130, 85); },        // diagonal
+      g => { rect(g); syLine(g, 0, -110, 0, 110); },            // down the middle
+      g => { rect(g); syLine(g, -60, -110, -60, 110); },        // off-centre
+    ];
+    S.q1 = lines.map((fn, i) => { const cx = 360 + i * 440; return syPick(p, cx, 390, g => { const c = G(g, { x: cx, y: 390 }); fn(c); }, 'ABC'[i]); });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-line', prompt: 'Click the picture whose dashed line is a line of symmetry.',
+    build: pickEls(S.q1 || [], 1, 'Down the middle works: fold the rectangle there and the left half lands exactly on the right half.',
+      i => i === 0 ? 'Fold along a diagonal and the long sides do not land on the short sides, so the halves do not match.' : 'This line is off-centre. Fold along it and the left part is smaller than the right part, so they cannot match.',
+      () => pulseFx(S.q1[1].el, 1.08)),
+  }], done) }],
+
+  ['notsym', 'Not every line works', (m) => {
+    const p = panel(0);
+    const L = G(p, { o: 0 }), R = G(p, { o: 0 });
+    const pl = mk('path', { d: syPoly(F_L, AX, F_TOP, F_U, 1), ...syFill(SY_L) }, L);
+    mk('path', { d: syPoly(F_R1, AX, F_TOP, F_U, 1), ...syFill(SY_R) }, R);
+    mk('path', { d: syPoly(F_R2, AX, F_TOP, F_U, 1), ...syFill(SY_R) }, R);
+    show(L, .2); show(R, .2);
+    const ax = G(p, { o: 0 }); syLine(ax, AX, F_TOP - 40, AX, F_TOP + 5 * F_U + 40); show(ax, .3);
+    syText(p, 'the letter F', AX + 200, F_TOP + 150, m('f'), { size: 34, fill: COL.dim });
+    prog(q => { pl.setAttribute('d', syPoly(F_L, AX, F_TOP, F_U, 1 - 2 * q)); pl.setAttribute('stroke', q > .02 ? COL.bad : SY_L); }, m('fold'), 2.4, io);
+    const ring = G(p, { x: AX + F_U, y: F_TOP + 4 * F_U, o: 0 });
+    mk('circle', { r: 75, fill: 'none', stroke: COL.bad, 'stroke-width': 5 }, ring);
+    show(ring, m('miss')); pulse(ring, m('miss'), 1.15);
+    syText(p, 'sticks out!', AX + 200, F_TOP + 4 * F_U + 10, m('miss'), { size: 34, fill: COL.bad, weight: 600 });
+    syText(p, 'not a line of symmetry', 800, 860, m('name'), { size: 38, fill: COL.bad, anchor: 'middle', weight: 600 });
+  }],
+
+  ['count', 'How many lines?', (m) => {
+    const p = panel(0);
+    syTitle(p, 'Shapes can have many lines of symmetry');
+    const cy = 400, xs = [280, 600, 920, 1240];
+    const shapes = [
+      (g) => mk('rect', { x: -100, y: -100, width: 200, height: 200, rx: 4, ...syFill(COL.whole, .35) }, g),
+      (g) => mk('rect', { x: -130, y: -80, width: 260, height: 160, rx: 4, ...syFill(COL.int, .35) }, g),
+      (g) => mk('path', { d: 'M0 -127L110 63.5L-110 63.5Z', ...syFill(COL.irr, .35) }, g),
+      (g) => mk('circle', { r: 100, ...syFill(COL.real, .35) }, g),
+    ];
+    const tri = a => { const [vx, vy] = [[0, -127], [110, 63.5], [-110, 63.5]][a]; return [vx * 1.18, vy * 1.18, -vx * .65, -vy * .65]; };
+    const L = [
+      [[0, -125, 0, 125], [-125, 0, 125, 0], [-125, -125, 125, 125], [125, -125, -125, 125]],
+      [[0, -110, 0, 110], [-155, 0, 155, 0]],
+      [tri(0), tri(1), tri(2)],
+      [0, 45, 90, 135].map(a => { const c = Math.cos(a * Math.PI / 180) * 135, s = Math.sin(a * Math.PI / 180) * 135; return [-c, -s, c, s]; }),
+    ];
+    const marks = ['sq', 'rect', 'tri', 'circ'], names = ['square', 'rectangle', 'equal-sided triangle', 'circle'], counts = ['4', '2', '3', '∞'];
+    xs.forEach((cx, i) => {
+      const g = G(p, { x: cx, y: cy, o: 0 }); shapes[i](g); show(g, .2 + i * .1);
+      L[i].forEach(([x1, y1, x2, y2], j) => { const l = G(g, { o: 0 }); syLine(l, x1, y1, x2, y2); show(l, m(marks[i]) + j * .45); });
+      const t0 = m(marks[i]) + L[i].length * .45 - .2;
+      syText(p, counts[i], cx, 660, t0, { size: 76, fill: SY_LINE, anchor: 'middle', weight: 700 });
+      syText(p, names[i], cx, 720, .3, { size: 27, fill: COL.dim, anchor: 'middle' });
+    });
+  }],
+
+  ['q2', 'Quick check', () => {
+    const p = panel(0);
+    syTitle(p, 'Which shape has no line of symmetry?');
+    const shapes = [
+      g => mk('circle', { r: 95, ...syFill(COL.real, .35) }, g),
+      g => mk('rect', { x: -120, y: -75, width: 240, height: 150, rx: 4, ...syFill(COL.int, .35) }, g),
+      g => mk('path', { d: 'M-90 70L110 70L-30 -90Z', ...syFill(COL.irr, .35) }, g),
+      g => mk('rect', { x: -90, y: -90, width: 180, height: 180, rx: 4, ...syFill(COL.whole, .35) }, g),
+    ];
+    S.q2 = shapes.map((fn, i) => { const cx = 320 + i * 320; return syPick(p, cx, 390, g => { const c = G(g, { x: cx, y: 390 }); fn(c); }, 'ABCD'[i]); });
+  }, { ask: done => quiz(BAND, [{
+    id: 'c-none', prompt: 'Click the shape that has no line of symmetry.',
+    build: pickEls(S.q2 || [], 2, 'All three sides are different lengths, so no fold makes the two parts match.',
+      i => ['A circle folds onto itself along any line through its centre.', 'Fold a rectangle down the middle, either way, and the halves match.', '', 'A square has four lines of symmetry.'][i],
+      () => pulseFx(S.q2[2].el, 1.1)),
+  }], done) }],
+
+  ['wrap', 'Summary', (m) => {
+    const p = panel(0);
+    [['A line of symmetry folds a shape onto itself.', 'w1'], ['Mirror twins are the same distance from the line.', 'w2'], ['Some shapes have many lines, and some have none.', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 330 + i * 140, o: 0 });
+      mk('circle', { cx: 155, cy: -12, r: 26, fill: COL.task }, g);
+      T(g, String(i + 1), { x: 155, y: -1, size: 30, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 215, size: 36, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+
+  ['final1', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-twin', prompt: 'A point and its mirror twin are the same distance from the line of symmetry. Fill in the twin\'s distance.',
+    build: blanks([
+      { parts: ['Point 3 units left of the line. Twin: ', { box: '3' }, ' units right of the line.'], why: 'Mirror twins are the same distance from the line, on opposite sides.', hint: 'Same distance, opposite side.' },
+      { parts: ['Point 7 units above the mirror line. Twin: ', { box: '7' }, ' units below the line.'], why: 'The twin is as far below the line as the point is above it.', hint: 'Same distance, opposite side.' },
+      { parts: ['Point sitting on the line. Twin: ', { box: '0' }, ' units from the line.'], why: 'A point on the line does not move when you fold, so it is its own twin.', hint: 'Think about what folding does to a point on the fold.' },
+    ]),
+  }], done, 'Chapter practice   1 of 3') }],
+
+  ['final2', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-count', prompt: 'How many lines of symmetry does each shape have?',
+    build: grid([
+      { parts: ['A square'], ans: ['4'], why: 'Two through the middles of opposite sides and two corner to corner.' },
+      { parts: ['A rectangle that is not a square'], ans: ['2'], why: 'Only the two lines through the middles of opposite sides. The diagonals do not work.' },
+      { parts: ['A triangle with three equal sides'], ans: ['3'], why: 'One from each corner to the middle of the opposite side.' },
+      { parts: ['A triangle with three different sides'], ans: ['0'], why: 'No fold makes its two parts match.' },
+    ], [['0', '0', null, '0'], ['1', '1', null, '1'], ['2', '2', null, '2'], ['3', '3', null, '3'], ['4', '4', null, '4']], { multi: false, text: true }),
+  }], done, 'Chapter practice   2 of 3') }],
+
+  ['final3', 'Chapter practice', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-tf', prompt: 'True or false?',
+    build: grid([
+      { parts: ['A circle has a line of symmetry through its centre.'], ans: ['t'], why: 'Any line through the centre folds a circle onto itself.' },
+      { parts: ['The letter F has a line of symmetry.'], ans: ['f'], why: 'Fold it anywhere and part of it sticks out.' },
+      { parts: ['A point on the mirror line has a twin in a different place.'], ans: ['f'], why: 'A point on the line is its own twin.' },
+      { parts: ['A line of symmetry folds a shape so its two halves match exactly.'], ans: ['t'], why: 'That is exactly what the words mean.' },
+    ], TF, { multi: false, text: true }),
+  }], done, 'Chapter practice   3 of 3') }],
+
+  ['finish', 'Finished', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>
